@@ -22,24 +22,7 @@ function PinGate() {
   }
 
   return (
-    <div
-      className="flex items-center justify-center h-screen bg-gray-100 overflow-hidden"
-      onClick={() => {
-        const hiddenInput = document.getElementById("hiddenPinInput") as HTMLInputElement;
-        hiddenInput?.focus();
-      }}
-    >
-      <input
-        id="hiddenPinInput"
-        type="tel"
-        inputMode="numeric"
-        autoComplete="one-time-code"
-        className="absolute opacity-0 pointer-events-none"
-        value={pin}
-        onChange={(e) =>
-          setPin(e.target.value.slice(0, 9))
-        }
-      />
+    <div className="flex items-center justify-center h-screen bg-gray-100 overflow-hidden">
       <div className="rat-animation flex items-center gap-3">
         <div className="text-6xl">🐀</div>
         <div className="bg-white border rounded-lg px-4 py-2 shadow text-lg">
