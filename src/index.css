@@ -36,3 +36,20 @@ body {
   background-color: var(--bg-color);
   color: var(--text-color);
 }
+
+@keyframes walk-in {
+  0% {
+    transform: translateX(-150%);
+    opacity: 0;
+  }
+  60% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.rat-animation {
+  animation: walk-in 2s ease-out forwards;
+}
