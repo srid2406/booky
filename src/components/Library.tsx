@@ -573,7 +573,10 @@ const Library: React.FC<LibraryProps> = ({
                                 {/* Book Info */}
                                 <div className="flex flex-col flex-1 space-y-1">
                                     {/* Title */}
-                                    <h3 className={`font-semibold text-xs sm:text-base leading-tight line-clamp-2 ${darkMode ? 'text-zinc-100' : 'text-gray-900'}`}>
+                                    <h3
+                                        className={`font-semibold text-xs sm:text-base leading-tight line-clamp-2 ${darkMode ? 'text-zinc-100' : 'text-gray-900'}`}
+                                        style={{ minHeight: '2.6em' }} // ensures 2-line height
+                                    >
                                         {book.title}
                                     </h3>
 
