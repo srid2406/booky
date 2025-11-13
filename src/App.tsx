@@ -1,11 +1,15 @@
 import { useState, useEffect } from 'react';
-import { Plus, Sun, Moon } from 'lucide-react';
+import { Plus, Sun, Moon, ArrowLeft } from 'lucide-react';
 import ReadingArea from './components/ReadingArea';
 import Library from './components/Library';
 import type { Book } from './types/Book';
 import { bookService } from './services/bookService';
 
-function App() {
+interface AppProps {
+  isPreviewMode?: boolean;
+}
+
+function App({ isPreviewMode = false }: AppProps) {
   const [darkMode, setDarkMode] = useState(false);
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [books, setBooks] = useState<Book[]>([]);
@@ -64,16 +68,14 @@ function App() {
     }
   }, [darkMode]);
 
-  // Save dark mode preference
-  // useEffect(() => {
-  //   localStorage.setItem('darkMode', JSON.stringify(darkMode));
-  // }, [darkMode]);
-
   const toggleDarkMode = () => {
     setDarkMode(!darkMode);
   };
 
   const handleBookSelect = (book: Book | null) => {
+    if (isPreviewMode) {
+      return;
+    }
     setSelectedBook(book);
   };
 
@@ -113,6 +115,10 @@ function App() {
     }
   };
 
+  const handleExitPreview = () => {
+    window.location.reload();
+  };
+
   // Show loading state
   if (loading) {
     return (
@@ -121,7 +127,7 @@ function App() {
           <div className={`animate-spin rounded-full h-16 w-16 border-4 ${darkMode ? 'border-zinc-800 border-t-blue-500' : 'border-gray-300 border-t-blue-600'
             } mx-auto mb-4`}></div>
           <p className={`text-lg ${darkMode ? 'text-zinc-100' : 'text-gray-900'}`}>
-            Loading your library...
+            Loading...
           </p>
         </div>
       </div>
@@ -174,13 +180,32 @@ function App() {
         onBookUpload={handleBookUpload}
         onBookSelect={handleBookSelect}
         onBookUpdate={handleBookUpdate}
+        isPreviewMode={isPreviewMode}
       />
     );
   };
 
   return (
     <div className={`min-h-screen flex flex-col ${darkMode ? 'bg-black' : 'bg-gray-50'} transition-colors duration-300`}>
-      {renderCurrentView()}
+      {/* Preview Mode Banner */}
+      {isPreviewMode && (
+        <div className={`fixed top-0 left-0 right-0 z-50 ${darkMode ? 'bg-zinc-900 border-b border-zinc-800' : 'bg-white border-b border-gray-200'} shadow-md`}>
+          <div className="flex items-center justify-between px-4 py-3">
+            <button
+              onClick={handleExitPreview}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors ${darkMode ? 'hover:bg-zinc-800 text-zinc-300' : 'hover:bg-gray-100 text-gray-700'
+                }`}
+            >
+              <ArrowLeft size={20} />
+              <span className="text-sm font-medium">Back to Login</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className={isPreviewMode ? 'pt-14' : ''}>
+        {renderCurrentView()}
+      </div>
 
       {/* Floating Action Buttons */}
       <div className="fixed bottom-6 left-6 right-6 flex justify-between pointer-events-none z-50">
@@ -196,8 +221,7 @@ function App() {
           {darkMode ? <Sun size={24} className="mx-auto" /> : <Moon size={24} className="mx-auto" />}
         </button>
 
-        {/* Add Book Button - Only show when in library view and on desktop (right) */}
-        {!selectedBook && isDesktop ? (
+        {!selectedBook && isDesktop && !isPreviewMode ? (
           <button
             onClick={() => {
               const fileInput = document.getElementById('fileInput') as HTMLInputElement;

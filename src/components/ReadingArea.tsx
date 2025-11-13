@@ -9,9 +9,9 @@ interface ReadingAreaProps {
   onBookClose: () => void;
 }
 
-const ReadingArea: React.FC<ReadingAreaProps> = ({ 
-  darkMode, 
-  selectedBook, 
+const ReadingArea: React.FC<ReadingAreaProps> = ({
+  darkMode,
+  selectedBook,
   onBookUpdate,
   onBookClose
 }) => {

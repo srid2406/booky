@@ -7,6 +7,7 @@ function PinGate() {
   const [pin, setPin] = useState("");
   const [isMobile, setIsMobile] = useState(false);
   const [showInput, setShowInput] = useState(false);
+  const [isPreviewMode, setIsPreviewMode] = useState(false);
   const correctPin = import.meta.env.VITE_LOGIN_PIN;
 
   useEffect(() => {
@@ -41,8 +42,19 @@ function PinGate() {
     return <App />;
   }
 
+  if (isPreviewMode) {
+    return <App isPreviewMode={true} />;
+  }
+
   return (
     <div className="flex items-center justify-center h-screen bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden p-4">
+      <button
+        onClick={() => setIsPreviewMode(true)}
+        className="absolute top-6 right-6 bg-white rounded-lg px-4 py-2 shadow-md hover:shadow-lg transition-all text-2xl hover:border-gray-400"
+      >
+        👁️‍🗨️
+      </button>
+
       <div className="text-center">
         {/* Desktop View - Hidden keyboard input */}
         {!isMobile && (
@@ -58,7 +70,7 @@ function PinGate() {
         {isMobile && (
           <div className="flex flex-col items-center gap-6 max-w-sm w-full">
             <div className="text-6xl animate-bounce mb-2">🐀</div>
-            
+
             {!showInput ? (
               <button
                 onClick={() => setShowInput(true)}

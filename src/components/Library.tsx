@@ -16,6 +16,7 @@ interface LibraryProps {
     onBookUpload: (book: BookType) => void;
     onBookSelect: (book: BookType) => void;
     onBookUpdate: (book: BookType) => void;
+    isPreviewMode?: boolean;
 }
 
 interface BookFormData {
@@ -30,6 +31,7 @@ const Library: React.FC<LibraryProps> = ({
     books,
     onBookUpload,
     onBookSelect,
+    isPreviewMode = false,
 }) => {
     const [dragActive, setDragActive] = useState(false);
     const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
@@ -105,7 +107,6 @@ const Library: React.FC<LibraryProps> = ({
 
     const generatePDFThumbnail = async (pdfUrl: string): Promise<string> => {
         return new Promise((resolve, reject) => {
-            // Create a script tag to load PDF.js
             if (!window.pdfjsLib) {
                 const script = document.createElement('script');
                 script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
@@ -122,7 +123,6 @@ const Library: React.FC<LibraryProps> = ({
 
     const generateThumbnailWithPDFJS = async (pdfUrl: string, resolve: (value: string) => void, reject: (reason?: any) => void) => {
         try {
-            // Set worker source
             window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
             const pdf = await window.pdfjsLib.getDocument(pdfUrl).promise;
@@ -147,8 +147,9 @@ const Library: React.FC<LibraryProps> = ({
         }
     };
 
-    // Listen for file input changes (triggered by floating button)
     useEffect(() => {
+        if (isPreviewMode) return;
+
         const fileInput = document.getElementById('fileInput') as HTMLInputElement;
         if (fileInput) {
             const handleFileChange = (e: Event) => {
@@ -160,10 +161,10 @@ const Library: React.FC<LibraryProps> = ({
             fileInput.addEventListener('change', handleFileChange);
             return () => fileInput.removeEventListener('change', handleFileChange);
         }
-    }, []);
+    }, [isPreviewMode]);
 
     const handleDrag = (e: React.DragEvent) => {
-        if (!isDesktop) return;
+        if (!isDesktop || isPreviewMode) return;
         e.preventDefault();
         e.stopPropagation();
         if (e.type === "dragenter" || e.type === "dragover") {
@@ -174,7 +175,7 @@ const Library: React.FC<LibraryProps> = ({
     };
 
     const handleDrop = (e: React.DragEvent) => {
-        if (!isDesktop) return;
+        if (!isDesktop || isPreviewMode) return;
         e.preventDefault();
         e.stopPropagation();
         setDragActive(false);
@@ -185,6 +186,8 @@ const Library: React.FC<LibraryProps> = ({
     };
 
     const handleFileSelect = (file: File) => {
+        if (isPreviewMode) return;
+
         if (file.type !== 'application/pdf') {
             alert('Please select a PDF file');
             return;
@@ -201,7 +204,7 @@ const Library: React.FC<LibraryProps> = ({
     };
 
     const handleUploadSubmit = async () => {
-        if (!uploadFile) return;
+        if (!uploadFile || isPreviewMode) return;
 
         setShowUploadForm(false);
 
@@ -216,7 +219,6 @@ const Library: React.FC<LibraryProps> = ({
             const book = await bookService.uploadBook(uploadFile, metadata, setUploadProgress);
             onBookUpload(book);
 
-            // Reset form
             setUploadFile(null);
             setFormData({ title: '', author: '', description: '', tags: '' });
 
@@ -228,6 +230,13 @@ const Library: React.FC<LibraryProps> = ({
             alert('Failed to upload book. Please try again.');
             setUploadProgress(null);
         }
+    };
+
+    const handleBookClick = (book: BookType) => {
+        if (isPreviewMode) {
+            return;
+        }
+        onBookSelect(book);
     };
 
     const formatDate = (dateString: string) => {
@@ -247,6 +256,9 @@ const Library: React.FC<LibraryProps> = ({
         if (searchQuery) {
             return `No books match "${searchQuery}". Try adjusting your search.`;
         }
+        if (isPreviewMode) {
+            return 'This library is currently empty';
+        }
         return 'Your library awaits. Start your reading journey today';
     };
 
@@ -256,13 +268,14 @@ const Library: React.FC<LibraryProps> = ({
 
     return (
         <main className={`flex-1 ${darkMode ? 'bg-black' : 'bg-slate-50'} transition-all duration-500 min-h-screen`}>
-            {/* Hidden file input for floating button */}
-            <input
-                type="file"
-                accept=".pdf"
-                className="hidden"
-                id="fileInput"
-            />
+            {!isPreviewMode && (
+                <input
+                    type="file"
+                    accept=".pdf"
+                    className="hidden"
+                    id="fileInput"
+                />
+            )}
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
                 {/* Mobile Header */}
@@ -282,7 +295,6 @@ const Library: React.FC<LibraryProps> = ({
                 {/* Desktop Header */}
                 <div className="hidden sm:block mb-12">
                     <div className="flex items-center justify-between mb-8">
-                        {/* Search Bar */}
                         <div className={`relative flex-1 mr-4 rounded-xl border p-1 flex items-center ${darkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white shadow-lg'}`}>
                             <Search size={18} className={`ml-4 ${darkMode ? 'text-zinc-500' : 'text-gray-500'}`} />
                             <input
@@ -294,7 +306,6 @@ const Library: React.FC<LibraryProps> = ({
                             />
                         </div>
 
-                        {/* Book Count */}
                         <div className={`flex items-center gap-3 px-6 py-3 rounded-xl border ${countBoxClasses}`}>
                             <Book className={`w-6 h-6 ${bookIconClasses}`} />
                             <div>
@@ -306,21 +317,16 @@ const Library: React.FC<LibraryProps> = ({
                     </div>
                 </div>
 
-
                 {/* Upload Progress Modal */}
-                {uploadProgress && (
+                {uploadProgress && !isPreviewMode && (
                     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                         <div className={`w-full max-w-md rounded-xl p-6 sm:p-8 border ${darkMode ? 'bg-zinc-950 border-zinc-800' : 'bg-white border-gray-200 shadow-2xl'}`}>
                             <div className="flex flex-col items-center">
-                                {/* Loading Animation */}
                                 <div className="relative mb-4 sm:mb-6">
                                     {uploadProgress.status === 'uploading' || uploadProgress.status === 'processing' ? (
                                         <div className="relative">
-                                            {/* Outer rotating ring */}
                                             <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-full border-4 ${darkMode ? 'border-zinc-800' : 'border-gray-200'}`}></div>
                                             <div className={`absolute inset-0 w-20 h-20 sm:w-24 sm:h-24 rounded-full border-4 border-transparent ${darkMode ? 'border-t-white' : 'border-t-black'} animate-spin`}></div>
-
-                                            {/* Inner icon */}
                                             <div className="absolute inset-0 flex items-center justify-center">
                                                 <Upload className={`w-8 h-8 sm:w-10 sm:h-10 ${darkMode ? 'text-white' : 'text-black'}`} />
                                             </div>
@@ -340,7 +346,6 @@ const Library: React.FC<LibraryProps> = ({
                                     )}
                                 </div>
 
-                                {/* Status Text */}
                                 <h3 className={`text-xl sm:text-2xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-black'}`}>
                                     {uploadProgress.status === 'uploading' ? 'Uploading...' :
                                         uploadProgress.status === 'processing' ? 'Processing...' :
@@ -353,7 +358,6 @@ const Library: React.FC<LibraryProps> = ({
                                             uploadProgress.status === 'completed' ? 'Your book is ready to read' : 'Something went wrong'}
                                 </p>
 
-                                {/* Progress Bar */}
                                 {(uploadProgress.status === 'uploading' || uploadProgress.status === 'processing') && (
                                     <div className="w-full">
                                         <div className="flex justify-between items-center mb-2">
@@ -373,7 +377,6 @@ const Library: React.FC<LibraryProps> = ({
                                     </div>
                                 )}
 
-                                {/* Error Message */}
                                 {uploadProgress.error && (
                                     <div className={`mt-4 p-3 sm:p-4 rounded-lg w-full ${darkMode ? 'bg-red-500/10 border border-red-500/20' : 'bg-red-50 border border-red-200'}`}>
                                         <p className={`text-sm ${darkMode ? 'text-red-400' : 'text-red-600'}`}>{uploadProgress.error}</p>
@@ -385,7 +388,7 @@ const Library: React.FC<LibraryProps> = ({
                 )}
 
                 {/* Upload Form Modal */}
-                {showUploadForm && (
+                {showUploadForm && !isPreviewMode && (
                     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                         <div className={`w-full max-w-lg rounded-xl p-6 sm:p-8 border ${darkMode ? 'bg-zinc-950 border-zinc-800' : 'bg-white border-gray-200 shadow-2xl'}`}>
                             <h3 className={`text-xl sm:text-2xl font-bold mb-6 ${darkMode ? 'text-white' : 'text-black'}`}>
@@ -400,8 +403,7 @@ const Library: React.FC<LibraryProps> = ({
                                         type="text"
                                         value={formData.title}
                                         onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                                        className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg border transition-all duration-200 focus:outline-none focus:ring-1 ${darkMode ? 'bg-zinc-900 border-zinc-800 text-zinc-100 placeholder-zinc-600 focus:ring-white focus:border-zinc-700' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500 focus:ring-black focus:border-gray-400'
-                                            }`}
+                                        className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg border transition-all duration-200 focus:outline-none focus:ring-1 ${darkMode ? 'bg-zinc-900 border-zinc-800 text-zinc-100 placeholder-zinc-600 focus:ring-white focus:border-zinc-700' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500 focus:ring-black focus:border-gray-400'}`}
                                     />
                                 </div>
                                 <div>
@@ -413,8 +415,7 @@ const Library: React.FC<LibraryProps> = ({
                                         value={formData.author}
                                         onChange={(e) => setFormData({ ...formData, author: e.target.value })}
                                         placeholder="Unknown Author"
-                                        className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg border transition-all duration-200 focus:outline-none focus:ring-1 ${darkMode ? 'bg-zinc-900 border-zinc-800 text-zinc-100 placeholder-zinc-600 focus:ring-white focus:border-zinc-700' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500 focus:ring-black focus:border-gray-400'
-                                            }`}
+                                        className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg border transition-all duration-200 focus:outline-none focus:ring-1 ${darkMode ? 'bg-zinc-900 border-zinc-800 text-zinc-100 placeholder-zinc-600 focus:ring-white focus:border-zinc-700' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500 focus:ring-black focus:border-gray-400'}`}
                                     />
                                 </div>
                                 <div>
@@ -425,8 +426,7 @@ const Library: React.FC<LibraryProps> = ({
                                         value={formData.description}
                                         onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                                         rows={3}
-                                        className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg border transition-all duration-200 focus:outline-none focus:ring-1 resize-none ${darkMode ? 'bg-zinc-900 border-zinc-800 text-zinc-100 placeholder-zinc-600 focus:ring-white focus:border-zinc-700' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500 focus:ring-black focus:border-gray-400'
-                                            }`}
+                                        className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg border transition-all duration-200 focus:outline-none focus:ring-1 resize-none ${darkMode ? 'bg-zinc-900 border-zinc-800 text-zinc-100 placeholder-zinc-600 focus:ring-white focus:border-zinc-700' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500 focus:ring-black focus:border-gray-400'}`}
                                     />
                                 </div>
                                 <div>
@@ -438,8 +438,7 @@ const Library: React.FC<LibraryProps> = ({
                                         value={formData.tags}
                                         onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
                                         placeholder="fiction, classic, literature"
-                                        className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg border transition-all duration-200 focus:outline-none focus:ring-1 ${darkMode ? 'bg-zinc-900 border-zinc-800 text-zinc-100 placeholder-zinc-600 focus:ring-white focus:border-zinc-700' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500 focus:ring-black focus:border-gray-400'
-                                            }`}
+                                        className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg border transition-all duration-200 focus:outline-none focus:ring-1 ${darkMode ? 'bg-zinc-900 border-zinc-800 text-zinc-100 placeholder-zinc-600 focus:ring-white focus:border-zinc-700' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500 focus:ring-black focus:border-gray-400'}`}
                                     />
                                 </div>
                             </div>
@@ -460,8 +459,7 @@ const Library: React.FC<LibraryProps> = ({
                                         setUploadFile(null);
                                         setFormData({ title: '', author: '', description: '', tags: '' });
                                     }}
-                                    className={`px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg font-semibold border transition-all duration-200 ${darkMode ? 'bg-zinc-900 hover:bg-zinc-800 border-zinc-800 text-zinc-100' : 'bg-white hover:bg-gray-50 border-gray-300 text-gray-700'
-                                        } transform hover:scale-105 w-full sm:w-auto`}
+                                    className={`px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg font-semibold border transition-all duration-200 ${darkMode ? 'bg-zinc-900 hover:bg-zinc-800 border-zinc-800 text-zinc-100' : 'bg-white hover:bg-gray-50 border-gray-300 text-gray-700'} transform hover:scale-105 w-full sm:w-auto`}
                                 >
                                     Cancel
                                 </button>
@@ -470,8 +468,8 @@ const Library: React.FC<LibraryProps> = ({
                     </div>
                 )}
 
-                {/* Drag & Drop Overlay - only on desktop */}
-                {dragActive && isDesktop && (
+                {/* Drag & Drop Overlay */}
+                {dragActive && isDesktop && !isPreviewMode && (
                     <div
                         className="fixed inset-0 z-40 flex items-center justify-center bg-blue-500/10 backdrop-blur-md"
                         onDragEnter={handleDrag}
@@ -494,8 +492,7 @@ const Library: React.FC<LibraryProps> = ({
                 {/* Books Grid or Empty State */}
                 {filteredBooks.length === 0 ? (
                     <div
-                        className={`text-center py-12 sm:py-24 border rounded-2xl transition-all duration-300 ${darkMode ? 'border-zinc-800 bg-zinc-900 hover:border-zinc-700' : 'border-gray-200 bg-white/50 hover:border-blue-400/50'
-                            }`}
+                        className={`text-center py-12 sm:py-24 border rounded-2xl transition-all duration-300 ${darkMode ? 'border-zinc-800 bg-zinc-900 hover:border-zinc-700' : 'border-gray-200 bg-white/50 hover:border-blue-400/50'}`}
                         onDragEnter={handleDrag}
                         onDragLeave={handleDrag}
                         onDragOver={handleDrag}
@@ -505,14 +502,16 @@ const Library: React.FC<LibraryProps> = ({
                             <Book className={`mx-auto mb-4 sm:mb-6 w-12 h-12 sm:w-24 sm:h-24 ${darkMode ? 'text-zinc-700' : 'text-gray-300'}`} />
                         </div>
                         <h3 className={`text-2xl sm:text-3xl font-bold mb-4 ${darkMode ? 'text-zinc-100' : 'text-gray-900'}`}>
-                            {searchQuery ? 'Nothing here yet' : 'Your library awaits'}
+                            {searchQuery ? 'Nothing here yet' : isPreviewMode ? 'Empty Library' : 'Your library awaits'}
                         </h3>
                         <p className={`text-base sm:text-lg mb-2 ${darkMode ? 'text-zinc-400' : 'text-gray-600'}`}>
                             {getEmptyStateMessage()}
                         </p>
-                        <p className={`text-sm ${darkMode ? 'text-zinc-600' : 'text-gray-500'}`}>
-                            {isDesktop ? 'Click the + button or drag & drop PDF files to get started' : 'Add your first book from desktop to start your library'}
-                        </p>
+                        {!isPreviewMode && (
+                            <p className={`text-sm ${darkMode ? 'text-zinc-600' : 'text-gray-500'}`}>
+                                {isDesktop ? 'Click the + button or drag & drop PDF files to get started' : 'Add your first book from desktop to start your library'}
+                            </p>
+                        )}
                     </div>
                 ) : (
                     <div
@@ -526,13 +525,10 @@ const Library: React.FC<LibraryProps> = ({
                             <div
                                 key={book.id}
                                 data-book-id={book.id}
-                                className={`group rounded-lg p-2 sm:p-5 transition-all duration-300 hover:-translate-y-1 flex flex-col cursor-pointer border ${darkMode ? 'bg-zinc-900 border-zinc-800 hover:border-zinc-700' : 'bg-white border-gray-200 hover:border-gray-300 hover:shadow-sm'
-                                    }`}
-                                onClick={() => onBookSelect(book)}
+                                className={`group rounded-lg p-2 sm:p-5 transition-all duration-300 hover:-translate-y-1 flex flex-col cursor-pointer border ${darkMode ? 'bg-zinc-900 border-zinc-800 hover:border-zinc-700' : 'bg-white border-gray-200 hover:border-gray-300 hover:shadow-sm'}`}
+                                onClick={() => handleBookClick(book)}
                             >
-                                {/* Book Cover */}
-                                <div className={`relative aspect-[3/4] rounded-md mb-2 sm:mb-4 overflow-hidden ${darkMode ? 'bg-zinc-800' : 'bg-gray-100'
-                                    }`}>
+                                <div className={`relative aspect-[3/4] rounded-md mb-2 sm:mb-4 overflow-hidden ${darkMode ? 'bg-zinc-800' : 'bg-gray-100'}`}>
                                     {thumbnails[book.id] ? (
                                         <img
                                             src={thumbnails[book.id]}
@@ -560,8 +556,7 @@ const Library: React.FC<LibraryProps> = ({
                                         </div>
                                     )}
 
-                                    {/* Reading badge */}
-                                    {book.readingProgress && book.readingProgress > 0 && (
+                                    {!isPreviewMode && book.readingProgress && book.readingProgress > 0 && (
                                         <div className="absolute top-1 right-1">
                                             <div className={`px-1.5 sm:px-3 py-0.5 rounded-md text-xs font-medium ${darkMode ? 'bg-zinc-800 text-zinc-100 border border-zinc-700' : 'bg-gray-100 text-gray-900 border border-gray-200'}`}>
                                                 {Math.round(book.readingProgress)}%
@@ -570,17 +565,14 @@ const Library: React.FC<LibraryProps> = ({
                                     )}
                                 </div>
 
-                                {/* Book Info */}
                                 <div className="flex flex-col flex-1 space-y-1">
-                                    {/* Title */}
                                     <h3
                                         className={`font-semibold text-xs sm:text-base leading-tight line-clamp-2 ${darkMode ? 'text-zinc-100' : 'text-gray-900'}`}
-                                        style={{ minHeight: '2.6em' }} // ensures 2-line height
+                                        style={{ minHeight: '2.6em' }}
                                     >
                                         {book.title}
                                     </h3>
 
-                                    {/* Author */}
                                     <div className="h-4">
                                         <p className={`text-xs flex items-center gap-1 ${darkMode ? 'text-zinc-500' : 'text-gray-600'}`}>
                                             <User size={10} className="flex-shrink-0" />
@@ -588,15 +580,13 @@ const Library: React.FC<LibraryProps> = ({
                                         </p>
                                     </div>
 
-                                    {/* Tags - desktop only */}
                                     <div className="hidden sm:block mb-2 sm:mb-3 h-7">
                                         {book.tags && book.tags.length > 0 ? (
                                             <div className="flex flex-wrap gap-1">
                                                 {book.tags.slice(0, 2).map((tag, index) => (
                                                     <span
                                                         key={index}
-                                                        className={`text-xs px-2 py-0.5 rounded-md font-medium border ${darkMode ? 'bg-zinc-950 text-zinc-400 border-zinc-800' : 'bg-gray-50 text-gray-700 border-gray-200'
-                                                            }`}
+                                                        className={`text-xs px-2 py-0.5 rounded-md font-medium border ${darkMode ? 'bg-zinc-950 text-zinc-400 border-zinc-800' : 'bg-gray-50 text-gray-700 border-gray-200'}`}
                                                     >
                                                         {tag}
                                                     </span>
@@ -612,7 +602,6 @@ const Library: React.FC<LibraryProps> = ({
                                         )}
                                     </div>
 
-                                    {/* Meta Info - desktop only */}
                                     <div className={`hidden sm:block text-xs mb-2 sm:mb-3 h-12 ${darkMode ? 'text-zinc-600' : 'text-gray-500'}`}>
                                         <div className="space-y-1">
                                             <div className="flex items-center gap-1">
@@ -631,12 +620,10 @@ const Library: React.FC<LibraryProps> = ({
                     </div>
                 )}
 
-                {/* Bottom padding to avoid floating button overlap */}
                 <div className="h-16 sm:h-20"></div>
             </div>
 
-            {/* Floating + Button - desktop only */}
-            {isDesktop && (
+            {isDesktop && !isPreviewMode && (
                 <button
                     onClick={() => {
                         const fileInput = document.getElementById('fileInput') as HTMLInputElement;
